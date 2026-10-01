@@ -1,0 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cu132
+
+numpy==2.5.3
+scipy==1.18.1
+h5py==3.16.0
+torch==2.14.0+cu132
+ipykernel>=6.29,<7

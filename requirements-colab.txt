@@ -1,0 +1,4 @@
+# Colab usually includes PyTorch, NumPy, and SciPy already.
+# Install only if an import in 00_setup_and_data.ipynb reports it missing.
+scipy==1.18.1
+h5py==3.16.0
