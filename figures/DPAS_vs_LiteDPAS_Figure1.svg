@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1460" viewBox="0 0 2200 1460">
+<defs>
+  <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#52657a"/></marker>
+  <marker id="arrowLite" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#168a8a"/></marker>
+  <style>
+    text{font-family:Arial,Helvetica,sans-serif;fill:#17283f} .title{font-size:38px;font-weight:700}.sub{font-size:22px;fill:#52657a}
+    .paneltitle{font-size:27px;font-weight:700}.small{font-size:17px;fill:#52657a}.label{font-size:19px;font-weight:700}.body{font-size:17px}.tiny{font-size:15px;fill:#52657a}
+    .box{stroke-width:2}.arrow{stroke:#52657a;stroke-width:3;fill:none;marker-end:url(#arrow)} .arrow2{stroke:#168a8a;stroke-width:3;fill:none;marker-end:url(#arrowLite)}
+  </style>
+</defs>
+<rect width="2200" height="1460" fill="#f5f7fa"/>
+<text x="1100" y="66" text-anchor="middle" class="title">DPAS-CsiNet and Lite-DPAS: architecture comparison</text>
+<text x="1100" y="105" text-anchor="middle" class="sub">CSI feedback compression at the same feedback budget (CR = 1/4; 512 real-valued codeword elements)</text>
+
+<!-- left panel -->
+<rect x="55" y="140" width="1025" height="1120" rx="22" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+<rect x="55" y="140" width="1025" height="68" rx="22" fill="#eaf0f8"/>
+<path d="M55 185v23h1025v-23" fill="#eaf0f8"/>
+<text x="85" y="183" class="paneltitle">(a) DPAS-CsiNet — GitHub V5 implementation</text>
+<text x="85" y="237" class="small">Full-resolution dual-path processing and large dense compression / expansion</text>
+
+<!-- DPAS flow -->
+<rect x="95" y="270" width="190" height="78" rx="13" fill="#edf2f8" stroke="#9aabc0" class="box"/>
+<text x="190" y="301" text-anchor="middle" class="label">Input CSI</text><text x="190" y="328" text-anchor="middle" class="body">2 × 32 × 32</text>
+<path d="M190 348v28" class="arrow"/>
+<rect x="95" y="380" width="900" height="145" rx="14" fill="#f1f5fb" stroke="#8ba2bf" class="box"/>
+<text x="120" y="410" class="label">Encoder feature extraction · DualPathBlock × 2 · 16 × 32 × 32</text>
+<rect x="125" y="430" width="300" height="69" rx="10" fill="#dce9f8" stroke="#83a4ca" class="box"/>
+<text x="275" y="458" text-anchor="middle" class="body">Spatial path</text><text x="275" y="484" text-anchor="middle" class="small">full convolution 3 × 3</text>
+<rect x="460" y="430" width="300" height="69" rx="10" fill="#dce9f8" stroke="#83a4ca" class="box"/>
+<text x="610" y="458" text-anchor="middle" class="body">Delay path</text><text x="610" y="484" text-anchor="middle" class="small">full convolution 1 × 32</text>
+<path d="M425 465h32M760 465h44" class="arrow"/>
+<rect x="810" y="430" width="155" height="69" rx="10" fill="#d5e4f4" stroke="#83a4ca" class="box"/>
+<text x="887" y="458" text-anchor="middle" class="body">Fusion 1 × 1</text><text x="887" y="484" text-anchor="middle" class="small">+ AFG</text>
+<path d="M190 525v28" class="arrow"/>
+<rect x="95" y="557" width="900" height="78" rx="13" fill="#e9eff7" stroke="#9aabc0" class="box"/>
+<text x="545" y="589" text-anchor="middle" class="label">Channel attention → Flatten → dense projection</text>
+<text x="545" y="616" text-anchor="middle" class="body">16 × 32 × 32 = 16,384 → 512 · Sigmoid</text>
+<path d="M545 635v25" class="arrow"/>
+<rect x="320" y="664" width="450" height="74" rx="16" fill="#f6e8c9" stroke="#d1a64b" stroke-width="2.5"/>
+<text x="545" y="694" text-anchor="middle" class="label">512-D feedback codeword</text><text x="545" y="720" text-anchor="middle" class="small">same feedback budget</text>
+<path d="M545 738v25" class="arrow"/>
+<rect x="95" y="766" width="900" height="83" rx="13" fill="#e9eff7" stroke="#9aabc0" class="box"/>
+<text x="545" y="799" text-anchor="middle" class="label">Dense expansion 512 → 2,048 → reshape 2 × 32 × 32</text>
+<text x="545" y="827" text-anchor="middle" class="small">Decoder starts from a full-resolution, 2-channel feature map</text>
+<path d="M545 849v24" class="arrow"/>
+<rect x="95" y="876" width="900" height="126" rx="14" fill="#f1f5fb" stroke="#8ba2bf" class="box"/>
+<text x="120" y="908" class="label">Decoder refinement</text>
+<rect x="130" y="928" width="240" height="52" rx="9" fill="#dce9f8" stroke="#83a4ca" class="box"/><text x="250" y="960" text-anchor="middle" class="body">DualPathBlock</text>
+<path d="M370 954h40" class="arrow"/>
+<rect x="415" y="928" width="250" height="52" rx="9" fill="#e7def5" stroke="#a38ac4" class="box"/><text x="540" y="960" text-anchor="middle" class="body">Spectral refinement (FFT)</text>
+<path d="M665 954h40" class="arrow"/>
+<rect x="710" y="928" width="240" height="52" rx="9" fill="#dce9f8" stroke="#83a4ca" class="box"/><text x="830" y="960" text-anchor="middle" class="body">DualPathBlock</text>
+<path d="M545 1002v23" class="arrow"/>
+<rect x="320" y="1028" width="450" height="70" rx="13" fill="#edf2f8" stroke="#9aabc0" class="box"/>
+<text x="545" y="1058" text-anchor="middle" class="label">Residual add + Sigmoid</text><text x="545" y="1083" text-anchor="middle" class="body">Reconstructed CSI · 2 × 32 × 32</text>
+<rect x="95" y="1120" width="900" height="91" rx="12" fill="#fff8e9" stroke="#e4c677" class="box"/>
+<text x="120" y="1151" class="label">Design emphasis</text>
+<text x="120" y="1180" class="body">Rich full-resolution spatial / delay features; large dense bottleneck and decoder refinement.</text>
+
+<!-- right panel -->
+<rect x="1120" y="140" width="1025" height="1120" rx="22" fill="#ffffff" stroke="#b8d9d7" stroke-width="2"/>
+<rect x="1120" y="140" width="1025" height="68" rx="22" fill="#e1f3f1"/>
+<path d="M1120 185v23h1025v-23" fill="#e1f3f1"/>
+<text x="1150" y="183" class="paneltitle">(b) Lite-DPAS V5 — compact redesign</text>
+<text x="1150" y="237" class="small">Depthwise dual-axis blocks, earlier spatial reduction, bandwise spectral gates</text>
+
+<rect x="1160" y="270" width="190" height="78" rx="13" fill="#edf6f5" stroke="#84b8b4" class="box"/>
+<text x="1255" y="301" text-anchor="middle" class="label">Input CSI</text><text x="1255" y="328" text-anchor="middle" class="body">2 × 32 × 32</text>
+<path d="M1255 348v26" class="arrow2"/>
+<rect x="1160" y="378" width="930" height="107" rx="14" fill="#e8f5f3" stroke="#70aaa5" class="box"/>
+<text x="1185" y="408" class="label">Stem + DualAxisLiteBlock · 8 × 32 × 32</text>
+<rect x="1190" y="425" width="320" height="45" rx="9" fill="#d1ebe8" stroke="#80b9b4" class="box"/><text x="1350" y="454" text-anchor="middle" class="body">Depthwise spatial 3 × 3</text>
+<text x="1530" y="456" class="label">+</text>
+<rect x="1560" y="425" width="300" height="45" rx="9" fill="#d1ebe8" stroke="#80b9b4" class="box"/><text x="1710" y="454" text-anchor="middle" class="body">Depthwise delay 1 × 15</text>
+<text x="1880" y="455" class="small">→ 1 × 1 fuse</text>
+<path d="M1255 485v23" class="arrow2"/>
+<rect x="1160" y="512" width="930" height="92" rx="14" fill="#e8f5f3" stroke="#70aaa5" class="box"/>
+<text x="1185" y="545" class="label">Learned downsample ×2 · 8 × 16 × 16</text>
+<text x="1185" y="578" class="body">Stride-2 convolution → compact spatial grid; DualAxisLiteBlock maintains local spatial / delay context.</text>
+<path d="M1255 604v23" class="arrow2"/>
+<rect x="1160" y="631" width="930" height="77" rx="13" fill="#e7def5" stroke="#a38ac4" class="box"/>
+<text x="1625" y="662" text-anchor="middle" class="label">Bandwise spectral gate (4 bands) + DualAxisLiteBlock</text>
+<text x="1625" y="689" text-anchor="middle" class="small">Operates on 8 × 16 × 16 features</text>
+<path d="M1625 708v23" class="arrow2"/>
+<rect x="1160" y="735" width="930" height="78" rx="13" fill="#e8f5f3" stroke="#70aaa5" class="box"/>
+<text x="1625" y="768" text-anchor="middle" class="label">1 × 1 projection 8 → 4 · Flatten 4 × 16 × 16 = 1,024</text>
+<text x="1625" y="795" text-anchor="middle" class="body">Dense projection 1,024 → 512 · Sigmoid</text>
+<path d="M1625 813v24" class="arrow2"/>
+<rect x="1400" y="840" width="450" height="70" rx="16" fill="#f6e8c9" stroke="#d1a64b" stroke-width="2.5"/>
+<text x="1625" y="870" text-anchor="middle" class="label">512-D feedback codeword</text><text x="1625" y="895" text-anchor="middle" class="small">same feedback budget</text>
+<path d="M1625 910v23" class="arrow2"/>
+<rect x="1160" y="937" width="930" height="112" rx="14" fill="#e8f5f3" stroke="#70aaa5" class="box"/>
+<text x="1185" y="970" class="label">Compact decoder · 512 → 1,024 → 4 × 16 × 16</text>
+<text x="1185" y="1002" class="body">DualAxisLiteBlock → 1 × 1 expansion 4 → 8 → bandwise spectral gate (4 bands)</text>
+<text x="1185" y="1030" class="small">Keep most refinement on the reduced 16 × 16 grid</text>
+<path d="M1625 1049v23" class="arrow2"/>
+<rect x="1160" y="1076" width="930" height="75" rx="13" fill="#e8f5f3" stroke="#70aaa5" class="box"/>
+<text x="1625" y="1107" text-anchor="middle" class="label">Learned PixelShuffle ×2 upsample + DualAxisLiteBlock</text>
+<text x="1625" y="1134" text-anchor="middle" class="small">8 × 16 × 16 → 8 × 32 × 32</text>
+<path d="M1625 1151v17" class="arrow2"/>
+<rect x="1400" y="1172" width="450" height="61" rx="13" fill="#edf6f5" stroke="#84b8b4" class="box"/>
+<text x="1625" y="1199" text-anchor="middle" class="label">3 × 3 output conv + Sigmoid</text><text x="1625" y="1222" text-anchor="middle" class="small">Reconstructed CSI · 2 × 32 × 32</text>
+
+<!-- footer legend -->
+<rect x="55" y="1280" width="2090" height="115" rx="16" fill="#ffffff" stroke="#d5dde7" stroke-width="2"/>
+<text x="85" y="1317" class="label">Key architectural changes</text>
+<text x="85" y="1352" class="body">DPAS: full convolutions + full-resolution 16-channel features + 16,384→512 dense bottleneck</text>
+<text x="1120" y="1352" class="body">Lite-DPAS: depthwise separable dual-axis processing + 16×16 / 4-channel latent + 1,024→512 bottleneck</text>
+<text x="85" y="1381" class="tiny">Both use a 512-element feedback codeword. AFG = adaptive frequency gating; SRB = spectral refinement block. Diagram follows the repository implementations; paper-specific variants may differ.</text>
+</svg>
