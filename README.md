@@ -1,39 +1,264 @@
-# CSI 피드백용 경량 복원 모델 연구
+# LamyNet ❄️
+> **A Lightweight Dual-Axis & Bandwise Spectral Gating Autoencoder for CSI Feedback Compression in Massive MIMO FDD Systems**
 
-## 현재 연구 방향
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Task: Massive MIMO CSI Compression](https://img.shields.io/badge/Task-CSI%20Feedback%20Compression-informational.svg)](https://github.com/OhayoRINK)
 
-DPAS-CsiNet의 공간·지연·스펙트럼 정보 활용 아이디어를 유지하면서, depthwise 이중축 블록과 저차원 latent를 이용해 **같은 feedback budget에서 복원 정확도와 계산 비용을 함께 개선**하는 방향을 우선 검증합니다.
+English | [한국어 (Korean)](README_KR.md)
 
-첫 연구 질문은 다음과 같습니다.
+---
 
-> 같은 CSI 피드백 차원에서 Lite-DPAS가 CsiNet 및 DPAS-CsiNet보다 낮은 복원 NMSE와 적은 추론 비용을 달성할 수 있는가?
+## Overview
 
-새 모델의 성능은 아직 검증되지 않았습니다. 평균 NMSE와 함께 파라미터 수, Conv/Linear MAC 추정치, batch-1 실측 지연을 기록하고, 이후 CRNet·TransNet 및 미학습 채널 조건으로 평가를 확장합니다.
+**LamyNet** (developed under the project codename `Lite-DPAS v5`) is an ultra-lightweight, high-fidelity deep learning framework proposed for improving **Channel State Information (CSI) feedback compression performance** in Massive MIMO FDD systems.
 
-## 시작 범위
+Accurate downlink CSI feedback from User Equipment (UE) to the Base Station (BS) is indispensable for closed-loop beamforming and spatial multiplexing. However, in massive MIMO systems with large antenna arrays and numerous OFDM subcarriers, feedback overhead scales prohibitively. 
 
-- 데이터: COST2100 공식 benchmark
-- 첫 환경: Indoor, 압축률 CR=1/4
-- 첫 기준선: CsiNet 및 기존 DPAS-CsiNet
-- 첫 모델: Lite-DPAS, COST2100 indoor, CR=1/4
-- 다음 전이 대상: CR=1/16·1/32·1/64, outdoor, CRNet, TransNet
-- 1차 품질 지표: 복소수 NMSE (dB)
-- 1차 시스템 지표: batch-1 복원 지연, 파라미터 수, 연산량
+While baseline architectures like CsiNet pioneer autoencoder-based feedback, they incur heavy parameter footprints on UEs, struggle with long-delay multipath propagation, and suffer severe performance degradation under aggressive compression ratios.
 
-NMSE 개선, 파라미터 감소, 연산량 감소, 지연 감소를 각각 측정합니다. 한 지표의 변화만으로 다른 지표까지 개선됐다고 주장하지 않습니다.
+**LamyNet** overcomes these challenges by combining:
+- **Dual-Axis Depthwise Convolutions** (capturing spatial and long-range delay features with low complexity)
+- **Bandwise Spectral Gating** (adaptive frequency-domain reweighting via rFFT energy distribution)
+- **Spatial Feature Preservation** ($16 \times 16$ spatial grid instead of premature $8 \times 8$ bottlenecks)
+- **Learned PixelShuffle Synthesis** (sub-pixel upsampling eliminating checkerboard interpolation artifacts)
+- **50% Parameter Reduction** compared to standard CsiNet while maintaining competitive reconstruction accuracy across 1000-epoch training.
 
-## Lite-DPAS 테스트 빌드
+---
 
-대화형 실험은 [Lite-DPAS V2 노트북](notebooks/08_lite_dpas_v2_experiment.ipynb)에서 설정·학습·validation 프로파일 순서로 진행할 수 있습니다. 학습은 100 epoch 간격으로 재개 가능한 checkpoint를 저장하며, Colab 설정은 [실험 README](notebooks/README.md#google-colab-실행)에 있습니다. V2는 learned down/up-sampling 구조를 시험하는 새 버전이며, 결과가 확인되기 전에는 성능 우위나 경량성을 연구 결과로 간주하지 않습니다.
+## Model Architecture
 
-## 진행 순서
+![LamyNet Architecture](source/architecture_diagram.png)
 
-데이터 출처와 복사 검증 결과는 [DATA_MANIFEST.md](DATA_MANIFEST.md), 기준 모델과 loader 점검은 [BASELINE_AUDIT.md](BASELINE_AUDIT.md), 고정 평가 규칙은 [EVALUATION_PROTOCOL.md](EVALUATION_PROTOCOL.md)에 있습니다. sLLM 관련 문서는 별도 기존 연구 계획으로 남아 있습니다.
+```text
+========================================================================================
+[UE Encoder]
+Input CSI [2, 32, 32] 
+   │
+   ├─► ConvNormAct (2 -> 8, 3x3)
+   ├─► DualAxisLiteBlock (8 channels, 3x3 Spatial DW + 1x15 Delay DW)
+   ├─► LearnedDownsample (Stride-2 Conv + DualAxis, 32x32 -> 16x16)
+   ├─► BandwiseSpectralGate (rFFT on delay axis, 4-band adaptive gating)
+   ├─► DualAxisLiteBlock (8 channels)
+   ├─► Conv1x1 Channel Slimming (8 -> 4 channels)
+   └─► Flatten [1024] ──► Linear Projection ──► Codeword [Dim = 2048 / CR]
+                                                         │
+====================================== Uplink Feedback Channel =========================
+                                                         │
+[BS Decoder]                                             ▼
+Codeword [Dim = 2048 / CR] ──► Linear Expansion ──► Reshape [4, 16, 16]
+   │
+   ├─► DualAxisLiteBlock (4 channels)
+   ├─► ConvNormAct (4 -> 8, 1x1)
+   ├─► BandwiseSpectralGate (8 channels, 4-band delay spectrum reweighting)
+   ├─► LearnedPixelShuffleUp (Sub-pixel 2x upsampling, 16x16 -> 32x32)
+   ├─► Reconstruction Conv (8 -> 2, 3x3) + Sigmoid
+   └─► Reconstructed CSI [2, 32, 32]
+========================================================================================
+```
 
-## 실험 실행
+---
 
-기준선 노트북은 [notebooks/README.md](notebooks/README.md)에 안내되어 있습니다. Lite-DPAS는 `python -m src.train_lite_dpas`로 실행하며 학습 중 test split을 읽지 않습니다. `02_final_test.ipynb`는 설정을 확정한 후 최종 단계에서만 실행합니다.
+## Key Innovations
 
-## 현재 상태
+### 1. Dual-Axis Depthwise Convolution (`DualAxisLiteBlock`)
+Conventional 2D convolutions naively blend angle and delay axes with quadratic kernel parameter costs. LamyNet decouples feature extraction into two parallel depthwise branches:
+- **Spatial Path**: $3 \times 3$ Depthwise Conv for localized angle-domain correlations.
+- **Delay Path**: $1 \times 15$ Depthwise Conv capturing extended delay-axis multipath spreads across OFDM subcarriers.
+- **Pointwise Fusion**: $1 \times 1$ Conv fuses the concatenated branches with residual connections.
 
-새 연구 폴더를 만들고 COST2100 `.mat` 파일을 복사했습니다. 복사본 12개의 SHA-256이 원본과 모두 일치합니다. 이전 프로젝트의 모델 체크포인트·oracle 결과·sLLM 학습자료는 이 폴더에 포함하지 않았습니다. 기준 모델 소스와 새 실행 환경을 고정한 뒤, 깨끗한 baseline부터 시작합니다.
+```text
+Input Feature Map
+   ├── Depthwise Conv 3×3 (Spatial Path) ────┐
+   └── Depthwise Conv 1×15 (Delay Path) ────┴──► Concat ──► 1×1 Conv ──► (+) Residual ──► SiLU
+```
+
+### 2. Bandwise Spectral Gating (`BandwiseSpectralGate`)
+Unlike spatial or channel attention mechanisms that operate purely in time/delay space, the **Bandwise Spectral Gate** leverages fast real-valued Fourier transforms (`torch.fft.rfft`) along the delay axis:
+1. Calculates delay-domain power spectrum magnitudes.
+2. Pools energy into 4 discrete frequency bands via `adaptive_avg_pool1d`.
+3. Learns non-linear band-importance weights through a light MLP.
+4. Dynamically scales corresponding frequency bins before inverse transform (`irfft`), filtering noise and emphasizing dominant multipath clusters.
+
+### 3. Spatial Resolution Preservation ($16 \times 16$)
+Earlier prototypes (v1–v3) compressed features directly down to an $8 \times 8$ grid, suffering significant structural detail loss. LamyNet maintains a high-resolution $16 \times 16$ spatial grid while slimming the channel count to $4$. This yields a compact $4 \times 16 \times 16 = 1024$ latent representation before feedback projection, drastically reducing parameter count in fully connected layers while protecting spatial information.
+
+### 4. Sub-Pixel Convolution Synthesis (`LearnedPixelShuffleUp`)
+Instead of fixed bilinear interpolation or parameter-heavy transposed convolutions, LamyNet employs **PixelShuffle** with learned depthwise refinement:
+- Expands channel depth ($8 \rightarrow 32$) and rearranges spatial dimensions ($16 \times 16 \rightarrow 32 \times 32$).
+- Completely avoids checkerboard artifacts common in deconvolutional decoders.
+
+---
+
+## Experimental Results
+
+All experiments were conducted on the standard **COST2100** channel dataset (Indoor and Outdoor scenarios at carrier frequency 5.3 GHz and 300 MHz bandwidth). Models were trained from scratch for **1,000 full epochs** with `ReduceLROnPlateau` scheduling and NMSE loss.
+
+### 1. Overall Performance Table (1,000 Epochs)
+
+| Scenario | Compression Ratio (CR) | Encoded Dim | Best Epoch | Val NMSE (dB) | Val Cosine Sim ($\rho$) | **Test NMSE (dB)** | **Test Cosine Sim ($\rho$)** | Parameters | FLOPs (MACs) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Indoor** | **1/4** | 512 | 992 | **-19.293** | **0.99439** | **-19.288** | **0.99438** | 1,057,188 | 5.90M (2.95M) |
+| **Indoor** | **1/16** | 128 | 993 | -10.079 | 0.94890 | -10.078 | 0.94889 | 270,372 | 4.33M (2.16M) |
+| **Indoor** | **1/32** | 64 | 941 | -8.804 | 0.92977 | -8.786 | 0.92941 | 139,236 | 4.07M (2.03M) |
+| **Indoor** | **1/64** | 32 | 998 | -6.858 | 0.88859 | -6.839 | 0.88806 | **73,668** | **3.94M (1.97M)** |
+| **Outdoor** | **1/4** | 512 | 997 | **-9.368** | **0.94014** | **-9.368** | **0.94014** | 1,057,188 | 5.90M (2.95M) |
+| **Outdoor** | **1/16** | 128 | 992 | -5.364 | 0.83878 | -5.364 | 0.83877 | 270,372 | 4.33M (2.16M) |
+| **Outdoor** | **1/32** | 64 | 995 | -3.412 | 0.73034 | -3.412 | 0.73033 | 139,236 | 4.07M (2.03M) |
+| **Outdoor** | **1/64** | 32 | 995 | -2.308 | 0.62847 | -2.307 | 0.62846 | **73,668** | **3.94M (1.97M)** |
+
+> **Evaluation Metrics**:
+> - **NMSE (dB)**: $10 \log_{10} \mathbb{E} \left[ \frac{\|\mathbf{H} - \widehat{\mathbf{H}}\|_2^2}{\|\mathbf{H}\|_2^2} \right]$ (with normalized DC 0.5 offset centered)
+> - **Cosine Similarity ($\rho$)**: $\mathbb{E} \left[ \frac{|\mathrm{vec}(\mathbf{H})^H \mathrm{vec}(\widehat{\mathbf{H}})|}{\|\mathrm{vec}(\mathbf{H})\|_2 \|\mathrm{vec}(\widehat{\mathbf{H}})\|_2} \right]$
+
+---
+
+### 2. Parameter Efficiency vs. CsiNet Baseline
+
+By replacing dense $32 \times 32$ fully connected bottlenecks with a $16 \times 16 \times 4$ intermediate manifold and depthwise operators, LamyNet cuts parameter costs by approximately **50%**:
+
+| Compression Ratio | CsiNet Baseline Params | **LamyNet Params** | **Parameter Reduction** |
+|:---:|:---:|:---:|:---:|
+| **1/4** | 2,103,116 (2.10M) | **1,057,188 (1.06M)** | **-49.7%** |
+| **1/16** | 529,868 (0.53M) | **270,372 (0.27M)** | **-49.0%** |
+| **1/32** | 267,660 (0.27M) | **139,236 (0.14M)** | **-48.0%** |
+| **1/64** | 136,556 (0.14M) | **73,668 (0.07M)** | **-46.0%** |
+
+---
+
+### 3. Training Convergence Curves (1,000 Epochs)
+
+#### Indoor Scenario Validation NMSE
+![Indoor Validation NMSE](source/chart_indoor.png)
+
+#### Outdoor Scenario Validation NMSE
+![Outdoor Validation NMSE](source/chart_outdoor.png)
+
+#### Side-by-Side Convergence Comparison
+![Combined Convergence](source/chart_convergence_combined.png)
+
+#### Test NMSE Bar Comparison across Compression Ratios
+![Test NMSE Bar Comparison](source/chart_test_nmse_bars.png)
+
+---
+
+## Directory Structure
+
+```text
+L_D/
+├── source/                      # Generated evaluation charts & architecture diagram
+│   ├── architecture_diagram.png
+│   ├── chart_indoor.png
+│   ├── chart_outdoor.png
+│   ├── chart_convergence_combined.png
+│   ├── chart_test_nmse_bars.png
+│   └── evaluation_results.json
+├── src/
+│   ├── models/
+│   │   ├── lite_dpas.py         # LamyNet (LiteDPASCsiNetV5) architecture
+│   │   ├── csinet.py            # Reference CsiNet baseline
+│   │   └── lite_dpas_1736.py    # Experimental prototype variants
+│   ├── cost2100.py              # PyTorch Dataset loader for COST2100 .mat files
+│   ├── metrics.py               # Complex-equivalent NMSE and rho evaluation
+│   ├── profile_lite_dpas.py     # MACs, parameter counter, and inference latency profiler
+│   ├── train_baseline.py        # Core training engine with scheduler & checkpointing
+│   ├── train_lite_dpas.py       # Indoor training entrypoint
+│   └── train_lite_dpas_outdoor.py # Outdoor training entrypoint
+├── runs/                        # 1000-epoch checkpoints and training logs
+│   ├── litedpas_v5_indoor_cr4_1000ep/
+│   ├── litedpas_v5_indoor_cr16_1000ep/
+│   ├── litedpas_v5_indoor_cr32_1000ep/
+│   ├── litedpas_v5_indoor_cr64_1000ep/
+│   ├── litedpas_v5_outdoor_cr4_1000ep/
+│   ├── litedpas_v5_outdoor_cr16_1000ep/
+│   ├── litedpas_v5_outdoor_cr32_1000ep/
+│   └── litedpas_v5_outdoor_cr64_1000ep/
+├── notebooks/                   # Jupyter notebooks for experiment exploration
+├── evaluate_and_plot.py         # Evaluation and automated plot generator
+├── draw_diagram.py              # Architecture diagram generator script
+├── README.md                    # English documentation
+└── README_KR.md                 # Korean documentation
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+```bash
+git clone https://github.com/OhayoRINK/LamyNet.git
+cd LamyNet
+pip install torch torchvision numpy scipy matplotlib
+```
+
+### Dataset Setup
+
+Download the standard **COST2100** channel matrices (`DATA_Htrainin.mat`, `DATA_Hvalin.mat`, `DATA_Htestin.mat`, etc.) and place them inside a `Data/` directory:
+
+```text
+Data/
+├── DATA_Htrainin.mat
+├── DATA_Hvalin.mat
+├── DATA_Htestin.mat
+├── DATA_Htrainout.mat
+├── DATA_Hvalout.mat
+└── DATA_Htestout.mat
+```
+
+### Training
+
+To train LamyNet (Lite-DPAS v5) from scratch:
+
+```bash
+# Indoor Scenario, CR = 1/32, 1000 Epochs
+python src/train_lite_dpas.py \
+  --compression-ratio 32 \
+  --model litedpas_v5 \
+  --epochs 1000 \
+  --batch-size 200 \
+  --loss-mode nmse \
+  --scheduler-patience 25
+
+# Outdoor Scenario, CR = 1/16, 1000 Epochs
+python src/train_lite_dpas_outdoor.py \
+  --compression-ratio 16 \
+  --model litedpas_v5 \
+  --epochs 1000 \
+  --batch-size 200 \
+  --loss-mode nmse \
+  --scheduler-patience 25
+```
+
+### Evaluation & Profiling
+
+To evaluate checkpoint performance and measure MACs/latency:
+
+```bash
+# Generate complete evaluation metrics and plots across all 8 runs:
+python evaluate_and_plot.py
+
+# Profile individual checkpoint:
+python src/profile_lite_dpas.py \
+  --checkpoint runs/litedpas_v5_indoor_cr4_1000ep/best.pt \
+  --samples 512
+```
+
+---
+
+## Citation & Acknowledgments
+
+If you find this work or codebase helpful for your research, please consider citing:
+
+```bibtex
+@misc{lamynet2026,
+  author = {Donghee Shin and Contributors},
+  title = {LamyNet: A Lightweight Dual-Axis & Bandwise Spectral Gating Autoencoder for Massive MIMO CSI Feedback Compression},
+  year = {2026},
+  publisher = {GitHub},
+  howpublished = {\url{https://github.com/OhayoRINK/LamyNet}}
+}
+```
+
+This work builds upon the foundational principles of [CsiNet](https://ieeexplore.ieee.org/document/8400482), [PekoraNet](https://github.com/OhayoRINK/PekoraNet), and [DPAS-CsiNet](https://github.com/OhayoRINK/DPAS-CsiNet).
