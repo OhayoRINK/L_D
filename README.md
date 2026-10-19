@@ -245,20 +245,5 @@ python src/profile_lite_dpas.py \
   --samples 512
 ```
 
----
-
-## Citation & Acknowledgments
-
-If you find this work or codebase helpful for your research, please consider citing:
-
-```bibtex
-@misc{lamynet2026,
-  author = {Donghee Shin and Contributors},
-  title = {LamyNet: A Lightweight Dual-Axis & Bandwise Spectral Gating Autoencoder for Massive MIMO CSI Feedback Compression},
-  year = {2026},
-  publisher = {GitHub},
-  howpublished = {\url{https://github.com/OhayoRINK/LamyNet}}
-}
-```
 
 This work builds upon the foundational principles of [CsiNet](https://ieeexplore.ieee.org/document/8400482), [PekoraNet](https://github.com/OhayoRINK/PekoraNet), and [DPAS-CsiNet](https://github.com/OhayoRINK/DPAS-CsiNet).
