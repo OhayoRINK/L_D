@@ -1,5 +1,6 @@
 # LamyNet ❄️
 > **A Lightweight Dual-Axis & Bandwise Spectral Gating Autoencoder for CSI Feedback Compression in Massive MIMO FDD Systems**
+> Lightweight Adaptive Multi-axis Yield Network for Massive MIMO CSI Feedback Compression
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
